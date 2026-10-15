@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -18,16 +19,23 @@ class User extends Authenticatable
         'photo', 'status', 'qr_token',
     ];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['password', 'remember_token', 'qr_token'];
+
+    protected $appends = ['photo_url'];
 
     protected $casts = [
-        'joined_date' => 'date',
+        'joined_date' => 'date:Y-m-d',
         'password' => 'hashed',
     ];
 
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    public function getPhotoUrlAttribute(): ?string
+    {
+        return $this->photo ? Storage::disk('public')->url($this->photo) : null;
     }
 
     // Gives the user a unique QR token if they don't have one yet.
