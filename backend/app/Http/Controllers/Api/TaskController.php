@@ -100,8 +100,8 @@ class TaskController extends Controller
         $user = $request->user();
         $task = Task::findOrFail($id);
 
-        // Admin can delete any task. Others only tasks they added themselves.
-        abort_unless($user->isAdmin() || ($task->created_by === $user->id && $task->assigned_to === $user->id), 403);
+        // Admin can delete any task. Others can delete any task assigned to them.
+        abort_unless($user->isAdmin() || $task->assigned_to === $user->id, 403);
 
         $task->delete();
 

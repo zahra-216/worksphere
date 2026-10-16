@@ -48,7 +48,7 @@ class UserController extends Controller
             'position' => 'nullable|string|max:100',
             'employment_type' => 'nullable|string|max:50',
             'university' => 'nullable|string|max:150',
-            'joined_date' => 'nullable|date',
+            'joined_date' => 'nullable|date|before_or_equal:today',
             'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'password' => 'nullable|string|min:8',
         ]);
@@ -91,7 +91,7 @@ class UserController extends Controller
             'position' => 'nullable|string|max:100',
             'employment_type' => 'nullable|string|max:50',
             'university' => 'nullable|string|max:150',
-            'joined_date' => 'nullable|date',
+            'joined_date' => 'nullable|date|before_or_equal:today',
             'status' => ['sometimes', Rule::in(['active', 'inactive'])],
             'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'password' => 'nullable|string|min:8',
