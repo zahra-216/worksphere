@@ -18,17 +18,25 @@ class SelfScanController extends Controller
             : User::where('qr_token', $token)->where('status', 'active')->first();
     }
 
-    private function nextType(User $user): string
+    private function todayCount(User $user): int
     {
-        $last = GateLog::where('user_id', $user->id)
+        return GateLog::where('user_id', $user->id)
             ->whereDate('scanned_at', now()->toDateString())
-            ->orderByDesc('scanned_at')
-            ->first();
-
-        return ($last && $last->scan_type === 'in') ? 'out' : 'in';
+            ->count();
     }
 
-    // Step 1: QR scanned, find the person
+    private function details(User $user, string $next): array
+    {
+        return [
+            'name' => $user->name,
+            'ref' => $user->staff_code,
+            'role' => $user->role,
+            'next' => $next,
+            'date' => now()->format('d M Y'),
+            'time' => now()->format('h:i A'),
+        ];
+    }
+
     public function verify(Request $request)
     {
         $user = $this->person($request);
@@ -37,13 +45,15 @@ class SelfScanController extends Controller
             return response()->json(['message' => 'QR code not recognized.'], 404);
         }
 
-        return response()->json([
-            'name' => $user->name,
-            'next' => $this->nextType($user),
-        ]);
+        $count = $this->todayCount($user);
+
+        if ($count >= 2) {
+            return response()->json(['message' => $user->name . ' has already checked in and out today.'], 422);
+        }
+
+        return response()->json($this->details($user, $count === 0 ? 'in' : 'out'));
     }
 
-    // Step 2: Check In / Check Out clicked
     public function mark(Request $request)
     {
         $user = $this->person($request);
@@ -52,15 +62,13 @@ class SelfScanController extends Controller
             return response()->json(['message' => 'QR code not recognized.'], 404);
         }
 
-        $recent = GateLog::where('user_id', $user->id)
-            ->where('scanned_at', '>=', now()->subSeconds(10))
-            ->exists();
+        $count = $this->todayCount($user);
 
-        if ($recent) {
-            return response()->json(['message' => 'Already recorded, please wait.'], 429);
+        if ($count >= 2) {
+            return response()->json(['message' => 'Already checked in and out today.'], 422);
         }
 
-        $type = $this->nextType($user);
+        $type = $count === 0 ? 'in' : 'out';
 
         GateLog::create([
             'user_id' => $user->id,

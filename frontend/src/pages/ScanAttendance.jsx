@@ -77,8 +77,21 @@ export default function ScanAttendance() {
 
       {step === 'ready' && (
         <Card title="QR code verified">
-          <p className="mb-5 text-center text-sm text-muted">Scanned: {info.name}</p>
-          <button className={btn} disabled={busy} onClick={mark}>
+          <dl className="divide-y divide-line text-sm">
+            {[
+              ['Name', info.name],
+              ['Staff code', info.ref || '-'],
+              ['Role', cap(info.role)],
+              ['Date', info.date],
+              ['Time', info.time],
+            ].map(([k, v]) => (
+              <div key={k} className="flex justify-between py-2.5">
+                <dt className="text-muted">{k}</dt>
+                <dd className="font-medium">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <button className={`${btn} mt-5`} disabled={busy} onClick={mark}>
             {busy ? 'Please wait...' : isIn ? 'Check In' : 'Check Out'}
           </button>
           <button className="mt-3 w-full text-sm text-muted" onClick={() => setStep('scan')}>Scan again</button>

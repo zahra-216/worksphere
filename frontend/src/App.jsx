@@ -49,7 +49,7 @@ export default function App() {
       <Route element={<Protected><Layout /></Protected>}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/change-password" element={<ChangePassword />} />
-        <Route path="/scan" element={<ScanAttendance />} />
+        <Route path="/scan" element={admin(<ScanAttendance />)} />
 
         <Route path="/my-tasks" element={<PeopleOnly><MyTasks /></PeopleOnly>} />
         <Route path="/my-leave" element={<PeopleOnly><MyLeave /></PeopleOnly>} />

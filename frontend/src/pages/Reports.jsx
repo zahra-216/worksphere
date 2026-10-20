@@ -3,6 +3,7 @@ import { Download } from 'lucide-react'
 import { useFetch } from '../hooks/useList'
 import { cap, downloadCsv, fmtDate, fmtShort, plural, thisMonth } from '../lib/format'
 import { Card, Empty, ErrorNote, Loading, PageHeader, StatStrip, Tabs } from '../components/ui'
+import { downloadPdf } from '../lib/pdf'
 
 export default function Reports() {
   const [tab, setTab] = useState('overview')
@@ -49,9 +50,18 @@ export default function Reports() {
 
 function ExportButton({ name, month, columns, rows }) {
   return (
-    <button className="btn-ghost !py-1.5" disabled={!rows.length} onClick={() => downloadCsv(`${name}-${month}.csv`, columns, rows)}>
-      <Download className="h-4 w-4" /> CSV
-    </button>
+    <div className="flex gap-1">
+      <button className="btn-ghost !py-1.5" disabled={!rows.length} onClick={() => downloadCsv(`${name}-${month}.csv`, columns, rows)}>
+        <Download className="h-4 w-4" /> CSV
+      </button>
+      <button
+        className="btn-ghost !py-1.5"
+        disabled={!rows.length}
+        onClick={() => downloadPdf(`${name}-${month}.pdf`, `${cap(name.replace(/-/g, ' '))} report`, `Month: ${month}`, columns, rows)}
+      >
+        <Download className="h-4 w-4" /> PDF
+      </button>
+    </div>
   )
 }
 

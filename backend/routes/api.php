@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
-use App\Http\Controllers\Api\GateDeviceController;
 use App\Http\Controllers\Api\GateLogController;
 use App\Http\Controllers\Api\LeaveRequestController;
 use App\Http\Controllers\Api\PasswordController;
@@ -29,8 +28,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index']);   // admin: totals, others: own numbers
     Route::get('/settings', [SettingController::class, 'index']);
     Route::get('/projects', [ProjectController::class, 'index']);
-    Route::post('/attendance/verify', [SelfScanController::class, 'verify'])->middleware('throttle:30,1');
-    Route::post('/attendance/mark', [SelfScanController::class, 'mark'])->middleware('throttle:30,1');
 
     Route::apiResource('tasks', TaskController::class);   // admin: all tasks, others: own tasks only
 
@@ -53,12 +50,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::patch('/leave-requests/{id}/decision', [LeaveRequestController::class, 'decide']);
 
-        Route::get('/gate-log', [GateLogController::class, 'index']);
+        Route::post('/attendance/verify', [SelfScanController::class, 'verify'])->middleware('throttle:30,1');
+        Route::post('/attendance/mark', [SelfScanController::class, 'mark'])->middleware('throttle:30,1');
 
-        Route::get('/gate-devices', [GateDeviceController::class, 'index']);
-        Route::post('/gate-devices', [GateDeviceController::class, 'store']);
-        Route::post('/gate-devices/{id}/toggle', [GateDeviceController::class, 'toggle']);
-        Route::delete('/gate-devices/{id}', [GateDeviceController::class, 'destroy']);
+        Route::get('/gate-log', [GateLogController::class, 'index']);
+        Route::get('/gate-log/history', [GateLogController::class, 'history']);
 
         Route::prefix('reports')->group(function () {
             Route::get('/summary', [ReportController::class, 'summary']);

@@ -16,7 +16,7 @@ export default function Dashboard() {
         title={`${greeting()}, ${isAdmin ? 'Admin' : user?.name?.split(' ')[0]}`}
         subtitle="Here's what's happening today."
       />
-      <div className="mb-6"><ScanButton /></div>
+      
       <ErrorNote>{error}</ErrorNote>
       {!data && !error && <Loading />}
       {data && (isAdmin ? <AdminView d={data} /> : <PersonalView d={data} />)}
@@ -27,6 +27,7 @@ export default function Dashboard() {
 function AdminView({ d }) {
   return (
     <div className="space-y-6">
+      <div><ScanButton /></div>
       <StatStrip
         items={[
           { label: 'Staff', value: d.staff.total },
