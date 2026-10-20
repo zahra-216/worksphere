@@ -17,6 +17,7 @@ import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import ChangePassword from './pages/ChangePassword'
 import { Loading } from './components/ui'
+import ScanAttendance from './pages/ScanAttendance'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -48,6 +49,7 @@ export default function App() {
       <Route element={<Protected><Layout /></Protected>}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/change-password" element={<ChangePassword />} />
+        <Route path="/scan" element={<ScanAttendance />} />
 
         <Route path="/my-tasks" element={<PeopleOnly><MyTasks /></PeopleOnly>} />
         <Route path="/my-leave" element={<PeopleOnly><MyLeave /></PeopleOnly>} />

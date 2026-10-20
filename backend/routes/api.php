@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Middleware\AdminOnly;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\SelfScanController;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/forgot-password', [PasswordController::class, 'forgot'])->middleware('throttle:5,1');
@@ -28,6 +29,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index']);   // admin: totals, others: own numbers
     Route::get('/settings', [SettingController::class, 'index']);
     Route::get('/projects', [ProjectController::class, 'index']);
+    Route::post('/attendance/verify', [SelfScanController::class, 'verify'])->middleware('throttle:30,1');
+    Route::post('/attendance/mark', [SelfScanController::class, 'mark'])->middleware('throttle:30,1');
 
     Route::apiResource('tasks', TaskController::class);   // admin: all tasks, others: own tasks only
 

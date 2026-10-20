@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useFetch } from '../hooks/useList'
 import { Badge, Card, Empty, ErrorNote, Loading, PageHeader, PersonCell, StatStrip } from '../components/ui'
 import { cap, fmtShort, fmtTime, greeting } from '../lib/format'
+import { ScanLine } from 'lucide-react'
 
 export default function Dashboard() {
   const { user, isAdmin } = useAuth()
@@ -15,6 +16,7 @@ export default function Dashboard() {
         title={`${greeting()}, ${isAdmin ? 'Admin' : user?.name?.split(' ')[0]}`}
         subtitle="Here's what's happening today."
       />
+      <div className="mb-6"><ScanButton /></div>
       <ErrorNote>{error}</ErrorNote>
       {!data && !error && <Loading />}
       {data && (isAdmin ? <AdminView d={data} /> : <PersonalView d={data} />)}
@@ -133,3 +135,12 @@ function PersonalView({ d }) {
     </div>
   )
 }
+
+function ScanButton() {
+  return (
+    <Link to="/scan" className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white">
+      <ScanLine className="h-[18px] w-[18px]" /> Scan attendance
+    </Link>
+  )
+}
+
