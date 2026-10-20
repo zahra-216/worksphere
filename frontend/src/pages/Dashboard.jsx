@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext'
 import { useFetch } from '../hooks/useList'
 import { Badge, Card, Empty, ErrorNote, Loading, PageHeader, PersonCell, StatStrip } from '../components/ui'
 import { cap, fmtShort, fmtTime, greeting } from '../lib/format'
-import { ScanLine } from 'lucide-react'
 
 export default function Dashboard() {
   const { user, isAdmin } = useAuth()
@@ -27,7 +26,6 @@ export default function Dashboard() {
 function AdminView({ d }) {
   return (
     <div className="space-y-6">
-      <div><ScanButton /></div>
       <StatStrip
         items={[
           { label: 'Staff', value: d.staff.total },
@@ -134,14 +132,6 @@ function PersonalView({ d }) {
         </ul>
       </Card>
     </div>
-  )
-}
-
-function ScanButton() {
-  return (
-    <Link to="/scan" className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white">
-      <ScanLine className="h-[18px] w-[18px]" /> Scan attendance
-    </Link>
   )
 }
 
