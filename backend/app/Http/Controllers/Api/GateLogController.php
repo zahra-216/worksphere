@@ -68,13 +68,10 @@ class GateLogController extends Controller
         $end = $start->copy()->endOfMonth();
 
         $lateTime = Setting::get('late_after', '08:30');
-        $search = trim((string) $request->query('search'));
 
         $logs = GateLog::with('user')
             ->whereBetween('scanned_at', [$start, $end])
-            ->when($search !== '', fn($q) => $q->whereHas('user', fn($u) => $u
-                ->where('name', 'like', "%$search%")
-                ->orWhere('staff_code', 'like', "%$search%")))
+            ->when($request->query('user_id'), fn($q, $id) => $q->where('user_id', $id))
             ->orderBy('scanned_at')
             ->get();
 
@@ -105,6 +102,25 @@ class GateLogController extends Controller
             ->values();
 
         return response()->json(['month' => $start->format('Y-m'), 'rows' => $rows]);
+    }
+
+    // GET /api/gate-log/people?q=zah  (employees to pick from for the report)
+    public function people(Request $request)
+    {
+        $q = trim((string) $request->query('q'));
+
+        if ($q === '') {
+            return response()->json([]);
+        }
+
+        return response()->json(
+            User::where('role', '!=', 'admin')
+                ->where('status', 'active')
+                ->where(fn($w) => $w->where('name', 'like', "%$q%")->orWhere('staff_code', 'like', "%$q%"))
+                ->orderBy('name')
+                ->limit(10)
+                ->get(['id', 'name', 'staff_code', 'role'])
+        );
     }
 
 }

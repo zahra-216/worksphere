@@ -5,6 +5,7 @@ import { useFetch } from '../hooks/useList'
 import { cap, fmtDate, fmtTime, thisMonth, today } from '../lib/format'
 import { downloadPdf } from '../lib/pdf'
 import { Badge, Card, PageHeader, PersonCell, StatStrip, Tabs, TableState } from '../components/ui'
+import { api } from '../lib/api'
 
 export default function Attendance() {
   const [tab, setTab] = useState('daily')
@@ -76,39 +77,86 @@ function Daily() {
 
 function History() {
   const [month, setMonth] = useState(thisMonth())
-  const [name, setName] = useState('')
-  const [q, setQ] = useState('')
+  const [text, setText] = useState('')
+  const [picked, setPicked] = useState(null) // the chosen employee
+  const [matches, setMatches] = useState([])
+  const [showList, setShowList] = useState(false)
 
+  // look up matching employees while typing
   useEffect(() => {
-    const t = setTimeout(() => setQ(name.trim()), 400)
+    const q = text.trim()
+    if (picked || !q) { setMatches([]); return }
+    const t = setTimeout(async () => {
+      try { setMatches(await api(`/gate-log/people?q=${encodeURIComponent(q)}`)) } catch { setMatches([]) }
+    }, 300)
     return () => clearTimeout(t)
-  }, [name])
+  }, [text, picked])
 
-  const { data, loading, error } = useFetch(`/gate-log/history?month=${month}&search=${encodeURIComponent(q)}`)
+  const { data, loading, error } = useFetch(`/gate-log/history?month=${month}${picked ? `&user_id=${picked.id}` : ''}`)
   const rows = data?.rows || []
 
-  const cols = [
-    ['Name', (r) => r.name],
-    ['ID', (r) => r.staff_code],
-    ['Date', (r) => fmtDate(r.date)],
-    ['Check-in', (r) => (r.check_in ? fmtTime(r.check_in) : '-')],
-    ['Check-out', (r) => (r.check_out ? fmtTime(r.check_out) : '-')],
-    ['Status', (r) => (r.late ? 'Late' : 'On time')],
-  ]
+  function choose(p) { setPicked(p); setText(p.name); setShowList(false); setMatches([]) }
+  function clear() { setPicked(null); setText(''); setMatches([]) }
 
   function pdf() {
-    downloadPdf(`attendance-${month}.pdf`, 'Attendance report', `Month: ${month}${q ? ` | Search: ${q}` : ''}`, cols, rows)
+    const monthName = new Date(`${month}-01`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+    const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date))
+    const cols = [
+      ['Date', (r) => fmtDate(r.date)],
+      ['Day', (r) => new Date(r.date).toLocaleDateString('en-GB', { weekday: 'long' })],
+      ['Check-in', (r) => (r.check_in ? fmtTime(r.check_in) : '-')],
+      ['Check-out', (r) => (r.check_out ? fmtTime(r.check_out) : '-')],
+      ['Status', (r) => (r.late ? 'Late' : 'On time')],
+    ]
+    downloadPdf(
+      `attendance-${picked.staff_code || picked.id}-${month}.pdf`,
+      'Attendance report',
+      monthName,
+      cols,
+      sorted,
+      [
+        ['Name', picked.name],
+        ['ID', picked.staff_code || '-'],
+        ['Role', cap(picked.role)],
+        ['Days present', rows.length],
+        ['Days late', rows.filter((r) => r.late).length],
+      ],
+    )
   }
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <input className="input !w-auto" type="month" value={month} max={thisMonth()} onChange={(e) => e.target.value && setMonth(e.target.value)} />
-        <input className="input !w-auto" placeholder="Search name or ID" value={name} onChange={(e) => setName(e.target.value)} />
-        <button className="btn-ghost" disabled={!rows.length} onClick={pdf}><Download className="h-4 w-4" /> PDF</button>
-      </div>
 
-      <Card title="History" flush>
+        <div className="relative">
+          <input
+            className="input !w-72"
+            placeholder="Search employee name or ID"
+            value={text}
+            onChange={(e) => { setText(e.target.value); setPicked(null); setShowList(true) }}
+          />
+          {showList && matches.length > 0 && (
+            <ul className="absolute z-20 mt-1 max-h-72 w-80 overflow-auto rounded-xl border border-line bg-white py-1 shadow-lg">
+              {matches.map((p) => (
+                <li key={p.id}>
+                  <button type="button" className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-paper" onClick={() => choose(p)}>
+                    <span><span className="font-medium">{p.name}</span><span className="block text-xs text-muted">{p.staff_code}</span></span>
+                    <span className="text-xs text-muted">{cap(p.role)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {picked && <button className="btn-ghost" onClick={clear}>Clear</button>}
+        <button className="btn-ghost" disabled={!picked || !rows.length} onClick={pdf}><Download className="h-4 w-4" /> PDF</button>
+      </div>
+      {!picked && <p className="mb-4 text-xs text-muted">Search and select an employee to download their report.</p>}
+      {picked && <div className="mb-4" />}
+
+      <Card title={picked ? `${picked.name} · History` : 'History'} flush>
         <div className="overflow-x-auto">
           <table className="tbl">
             <thead>

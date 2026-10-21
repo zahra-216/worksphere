@@ -55,6 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/gate-log', [GateLogController::class, 'index']);
         Route::get('/gate-log/history', [GateLogController::class, 'history']);
+        Route::get('/gate-log/people', [GateLogController::class, 'people']);
 
         Route::prefix('reports')->group(function () {
             Route::get('/summary', [ReportController::class, 'summary']);
