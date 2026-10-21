@@ -19,6 +19,9 @@ export default function Reports() {
   }[tab]
 
   const { data, loading, error } = useFetch(path)
+  // The previous tab's data can still be there for one render after switching tabs
+  const needs = { overview: 'attendance_trend', attendance: 'rows', leaves: 'rows', work: 'by_project', staff: 'headcount' }
+  const ready = !loading && data && data[needs[tab]] !== undefined
 
   return (
     <div>
@@ -37,12 +40,12 @@ export default function Reports() {
 
       <div className="mt-6">
         <ErrorNote>{error}</ErrorNote>
-        {loading && <Loading />}
-        {!loading && data && tab === 'overview' && <Overview d={data} />}
-        {!loading && data && tab === 'attendance' && <AttendanceReport d={data} role={role} setRole={setRole} month={month} />}
-        {!loading && data && tab === 'leaves' && <LeaveReport d={data} month={month} />}
-        {!loading && data && tab === 'work' && <WorkReport d={data} month={month} />}
-        {!loading && data && tab === 'staff' && <PeopleReport d={data} month={month} />}
+        {!ready && !error && <Loading />}
+        {ready && tab === 'overview' && <Overview d={data} />}
+        {ready && tab === 'attendance' && <AttendanceReport d={data} role={role} setRole={setRole} month={month} />}
+        {ready && tab === 'leaves' && <LeaveReport d={data} month={month} />}
+        {ready && tab === 'work' && <WorkReport d={data} month={month} />}
+        {ready && tab === 'staff' && <PeopleReport d={data} month={month} />}
       </div>
     </div>
   )

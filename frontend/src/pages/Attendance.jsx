@@ -99,6 +99,7 @@ function History() {
   function clear() { setPicked(null); setText(''); setMatches([]) }
 
   function pdf() {
+    const safeName = picked.name.trim().replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') || picked.staff_code
     const monthName = new Date(`${month}-01`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
     const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date))
     const cols = [
@@ -109,7 +110,7 @@ function History() {
       ['Status', (r) => (r.late ? 'Late' : 'On time')],
     ]
     downloadPdf(
-      `attendance-${picked.staff_code || picked.id}-${month}.pdf`,
+      `attendance-${safeName}-${month}.pdf`,
       'Attendance report',
       monthName,
       cols,
