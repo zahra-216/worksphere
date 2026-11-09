@@ -29,6 +29,26 @@ export const toInputDate = (d) => (d ? String(d).slice(0, 10) : '')
 
 export const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 
+// "09:00:00" -> "09:00"
+export const hhmm = (t) => (t ? String(t).slice(0, 5) : '')
+
+// Add minutes to "HH:MM" (used to show the end of a 1 hour short leave)
+export const addMinutes = (t, mins) => {
+  if (!t) return ''
+  const [h, m] = t.split(':').map(Number)
+  const total = h * 60 + m + mins
+  if (total >= 24 * 60) return ''
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
+// What a leave request covers, e.g. "3 days", "Half day · 09:00-13:00", "Short leave · 10:00-11:00"
+export const leaveSize = (l) => {
+  if (l.duration_type === 'half' || l.duration_type === 'short') {
+    return `${l.duration_label} · ${hhmm(l.start_time)}-${hhmm(l.end_time)}`
+  }
+  return plural(l.total_days, 'day')
+}
+
 // Download rows as a CSV file. columns = [[header, row => value], ...]
 export function downloadCsv(filename, columns, rows) {
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`

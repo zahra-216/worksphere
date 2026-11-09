@@ -170,10 +170,10 @@ function AttendanceReport({ d, role, setRole, month }) {
 
 function LeaveReport({ d, month }) {
   const cols = [['Name', (r) => r.name], ['ID', (r) => r.staff_code], ['Role', (r) => r.role], ['Pending', (r) => r.pending],
-    ['Approved', (r) => r.approved], ['Rejected', (r) => r.rejected], ['Approved days', (r) => r.approved_days]]
+    ['Approved', (r) => r.approved], ['Rejected', (r) => r.rejected], ['Approved leave', (r) => r.approved_days]]
   return (
     <Card flush title="Leave by person" action={<ExportButton name="leave" month={month} columns={cols} rows={d.rows} />}>
-      <ReportTable head={['Name', 'Role', 'Pending', 'Approved', 'Rejected', 'Approved days']} isEmpty={!d.rows.length} empty="No leave in this month.">
+      <ReportTable head={['Name', 'Role', 'Pending', 'Approved', 'Rejected', 'Approved leave']} isEmpty={!d.rows.length} empty="No leave in this month.">
         {d.rows.map((r) => (
           <tr key={r.user_id}>
             <td><p className="font-medium">{r.name}</p><p className="text-xs text-muted">{r.staff_code}</p></td>

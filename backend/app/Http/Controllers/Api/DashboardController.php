@@ -65,11 +65,14 @@ class DashboardController extends Controller
     {
         $allowed = (int) Setting::get('default_leave_days', 14);
 
-        $used = LeaveRequest::where('user_id', $user->id)
+        // Add everything up as short-leave units first, so 3 short leaves roll into
+        // 1 half day and 2 half days into 1 full day before we show days.
+        $usedUnits = (int) LeaveRequest::where('user_id', $user->id)
             ->where('status', 'approved')
             ->whereYear('start_date', now()->year)
             ->get()
-            ->sum('total_days');
+            ->sum('units');
+        $used = round($usedUnits / LeaveRequest::UNITS_FULL, 2);
 
         $todayLogs = GateLog::where('user_id', $user->id)
             ->whereDate('scanned_at', now()->toDateString())
@@ -90,7 +93,9 @@ class DashboardController extends Controller
             'leave' => [
                 'allowed' => $allowed,
                 'used' => $used,
-                'remaining' => max(0, $allowed - $used),
+                'used_label' => LeaveRequest::describeUnits($usedUnits),
+                'remaining' => max(0, round($allowed - $used, 2)),
+                'remaining_label' => LeaveRequest::describeUnits(max(0, $allowed * LeaveRequest::UNITS_FULL - $usedUnits)),
                 'pending_requests' => LeaveRequest::where('user_id', $user->id)->where('status', 'pending')->count(),
             ],
             'attendance_today' => [

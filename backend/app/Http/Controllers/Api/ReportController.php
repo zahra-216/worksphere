@@ -22,7 +22,9 @@ class ReportController extends Controller
         $today = now()->toDateString();
         $total = $this->people()->count();
         $present = GateLog::whereDate('scanned_at', $today)->distinct()->count('user_id');
+        // Only full-day leave counts as "on leave"; half/short leave people still come in
         $onLeave = LeaveRequest::where('status', 'approved')
+            ->where('duration_type', 'full')
             ->whereDate('start_date', '<=', $today)
             ->whereDate('end_date', '>=', $today)
             ->count();
@@ -182,15 +184,22 @@ class ReportController extends Controller
             ->get();
     }
 
-    // Counts only the leave days that fall inside the month
-    private function leaveDaysInMonth($leaves, Carbon $start, Carbon $end): int
+    // Leave inside the month as words, e.g. "1 day, 1 half day, 2 short leaves" (no decimals).
+    // Units are summed first so 3 short leaves = 1 half day and 2 half days = 1 full day.
+    private function leaveDaysInMonth($leaves, Carbon $start, Carbon $end): string
     {
-        return $leaves->sum(function ($l) use ($start, $end) {
+        $units = $leaves->sum(function ($l) use ($start, $end) {
+            if ($l->duration_type !== 'full') {
+                return $l->start_date->between($start->copy()->startOfDay(), $end->copy()->endOfDay()) ? $l->units : 0;
+            }
+
             $from = $l->start_date->copy()->max($start->copy()->startOfDay());
             $to = $l->end_date->copy()->min($end->copy()->startOfDay());
 
-            return $to->gte($from) ? $from->diffInDays($to) + 1 : 0;
+            return $to->gte($from) ? ($from->diffInDays($to) + 1) * LeaveRequest::UNITS_FULL : 0;
         });
+
+        return LeaveRequest::describeUnits((int) $units);
     }
 
     // One point per day: present vs absent. Weekends are skipped unless someone scanned in.
@@ -202,7 +211,7 @@ class ReportController extends Controller
             ->get(['user_id', 'scanned_at'])
             ->groupBy(fn($l) => $l->scanned_at->toDateString());
 
-        $leaves = $this->approvedLeaves($start, $end);
+        $leaves = $this->approvedLeaves($start, $end)->where('duration_type', 'full');
 
         $trend = [];
         for ($d = $start->copy(); $d->lte($last); $d->addDay()) {

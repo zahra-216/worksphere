@@ -44,7 +44,9 @@ function AdminView({ d }) {
                 <PersonCell
                   name={l.user?.name}
                   src={l.user?.photo_url}
-                  sub={`${cap(l.leave_type)} · ${fmtShort(l.start_date)} - ${fmtShort(l.end_date)}`}
+                  sub={l.duration_type === 'full'
+                    ? `${cap(l.leave_type)} · ${fmtShort(l.start_date)} - ${fmtShort(l.end_date)}`
+                    : `${cap(l.leave_type)} · ${l.duration_label} · ${fmtShort(l.start_date)}`}
                 />
                 <Badge status={l.status} />
               </li>

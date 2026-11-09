@@ -7,10 +7,12 @@ use App\Mail\LeaveDecided;
 use App\Mail\LeaveRequested;
 use App\Models\LeaveRequest;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class LeaveRequestController extends Controller
 {
@@ -49,10 +51,35 @@ class LeaveRequestController extends Controller
 
         $data = $request->validate([
             'leave_type' => ['required', Rule::in(['annual', 'sick', 'casual'])],
+            'duration_type' => ['required', Rule::in(['full', 'half', 'short'])],
             'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
+            'end_date' => 'required_if:duration_type,full|nullable|date|after_or_equal:start_date',
+            'start_time' => 'required_if:duration_type,half,short|nullable|date_format:H:i',
+            'end_time' => 'required_if:duration_type,half|nullable|date_format:H:i',
             'reason' => 'nullable|string|max:1000',
         ]);
+
+        if ($data['duration_type'] === 'full') {
+            // Whole days: no times
+            $data['start_time'] = $data['end_time'] = null;
+        } else {
+            // Short and half day leave are always a single day
+            $data['end_date'] = $data['start_date'];
+            $start = Carbon::createFromFormat('H:i', $data['start_time']);
+
+            if ($data['duration_type'] === 'short') {
+                // Short leave is exactly 1 hour
+                $data['end_time'] = $start->copy()->addMinutes(LeaveRequest::SHORT_MINUTES)->format('H:i');
+                abort_if($data['end_time'] <= $data['start_time'], 422, 'A short leave cannot run past midnight.');
+            } else {
+                $minutes = $start->diffInMinutes(Carbon::createFromFormat('H:i', $data['end_time']), false);
+                if ($minutes < LeaveRequest::HALF_MIN_MINUTES) {
+                    throw ValidationException::withMessages([
+                        'end_time' => 'A half day must be 3 hours or more. Use short leave for 1 hour.',
+                    ]);
+                }
+            }
+        }
 
         $leave = LeaveRequest::create($data + ['user_id' => $user->id]);
         $leave->load('user');

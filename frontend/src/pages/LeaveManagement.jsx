@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Check, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { useDebounced, useList } from '../hooks/useList'
-import { cap, fmtDate, plural } from '../lib/format'
+import { cap, fmtDate, leaveSize } from '../lib/format'
 import { Badge, Card, Modal, PageHeader, PersonCell, Pagination, SearchBox, TableState, Tabs, useToast } from '../components/ui'
 
 // Admin view: review, approve or reject leave requests
@@ -56,7 +56,7 @@ export default function LeaveManagement() {
         <div className="overflow-x-auto">
           <table className="tbl">
             <thead>
-              <tr><th>Name</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th className="text-right">Actions</th></tr>
+              <tr><th>Name</th><th>Type</th><th>From</th><th>To</th><th>Duration</th><th>Status</th><th className="text-right">Actions</th></tr>
             </thead>
             <tbody>
               {!loading && rows.map((l) => (
@@ -65,7 +65,7 @@ export default function LeaveManagement() {
                   <td>{cap(l.leave_type)}</td>
                   <td>{fmtDate(l.start_date)}</td>
                   <td>{fmtDate(l.end_date)}</td>
-                  <td>{l.total_days}</td>
+                  <td>{leaveSize(l)}</td>
                   <td><Badge status={l.status} /></td>
                   <td>
                     <div className="flex justify-end">
@@ -106,7 +106,7 @@ export default function LeaveManagement() {
             <PersonCell name={open.user?.name} sub={`${open.user?.staff_code} · ${cap(open.user?.role)}`} src={open.user?.photo_url} />
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
               <div><dt className="label">Type</dt><dd>{cap(open.leave_type)}</dd></div>
-              <div><dt className="label">Duration</dt><dd>{plural(open.total_days, 'day')}</dd></div>
+              <div><dt className="label">Duration</dt><dd>{leaveSize(open)}</dd></div>
               <div><dt className="label">From</dt><dd>{fmtDate(open.start_date)}</dd></div>
               <div><dt className="label">To</dt><dd>{fmtDate(open.end_date)}</dd></div>
               <div className="col-span-2"><dt className="label">Reason</dt><dd className="text-muted">{open.reason || 'No reason given.'}</dd></div>
