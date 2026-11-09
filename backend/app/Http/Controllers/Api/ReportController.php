@@ -103,7 +103,28 @@ class ReportController extends Controller
             ];
         })->values();
 
-        return response()->json(['month' => $start->format('Y-m'), 'rows' => $rows]);
+        // One line per approved leave: which day(s), which time, and why
+        $details = $leaves->flatten(1)
+            ->where('status', 'approved')
+            ->sortBy([['user.name', 'asc'], ['start_date', 'asc'], ['start_time', 'asc']])
+            ->map(fn($l) => [
+                'id' => $l->id,
+                'user_id' => $l->user_id,
+                'name' => $l->user?->name,
+                'staff_code' => $l->user?->staff_code,
+                'role' => $l->user?->role,
+                'leave_type' => $l->leave_type,
+                'duration_type' => $l->duration_type,
+                'duration_label' => $l->duration_label,
+                'start_date' => $l->start_date->toDateString(),
+                'end_date' => $l->end_date->toDateString(),
+                'start_time' => $l->start_time ? substr($l->start_time, 0, 5) : null,
+                'end_time' => $l->end_time ? substr($l->end_time, 0, 5) : null,
+                'reason' => $l->reason,
+            ])
+            ->values();
+
+        return response()->json(['month' => $start->format('Y-m'), 'rows' => $rows, 'details' => $details]);
     }
 
     // Tasks that started in the month: per person and per project, with days taken

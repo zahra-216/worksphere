@@ -50,10 +50,15 @@ export const leaveSize = (l) => {
 }
 
 // Download rows as a CSV file. columns = [[header, row => value], ...]
-export function downloadCsv(filename, columns, rows) {
+// summary = optional { title, columns, rows } added below the main table
+export function downloadCsv(filename, columns, rows, summary = null) {
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
   const lines = [columns.map(([h]) => esc(h)).join(',')]
   rows.forEach((r) => lines.push(columns.map(([, get]) => esc(get(r))).join(',')))
+  if (summary?.rows?.length) {
+    lines.push('', esc(summary.title), summary.columns.map(([h]) => esc(h)).join(','))
+    summary.rows.forEach((r) => lines.push(summary.columns.map(([, get]) => esc(get(r))).join(',')))
+  }
   const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

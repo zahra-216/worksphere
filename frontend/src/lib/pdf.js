@@ -14,7 +14,8 @@ const STATUS_COLORS = {
 
 // columns = [['Label', (row) => value], ...]
 // info    = optional [['Name', 'Zahra Hasan'], ...] shown in a box under the title
-export function downloadPdf(filename, title, subtitle, columns, rows, info = []) {
+// summary = optional { title, columns, rows } table printed after the main one (e.g. totals)
+export function downloadPdf(filename, title, subtitle, columns, rows, info = [], summary = null) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()
@@ -58,16 +59,16 @@ export function downloadPdf(filename, title, subtitle, columns, rows, info = [])
   }
 
   // Table
-  autoTable(doc, {
-    startY: y,
+  const tableOpts = (cols, data, startY) => ({
+    startY,
     margin: { top: headerH + 8, left: margin, right: margin, bottom: 18 },
-    head: [columns.map(([label]) => label)],
-    body: rows.map((r) => columns.map(([, fn]) => String(fn(r) ?? ''))),
+    head: [cols.map(([label]) => label)],
+    body: data.map((r) => cols.map(([, fn]) => String(fn(r) ?? ''))),
     styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.8, textColor: [40, 40, 40], lineColor: BORDER },
     headStyles: { fillColor: NAVY, textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: STRIPE },
     didParseCell: (d) => {
-      if (d.section === 'body' && columns[d.column.index][0] === 'Status') {
+      if (d.section === 'body' && cols[d.column.index][0] === 'Status') {
         const c = STATUS_COLORS[String(d.cell.raw).toLowerCase()]
         if (c) {
           d.cell.styles.textColor = c
@@ -76,6 +77,18 @@ export function downloadPdf(filename, title, subtitle, columns, rows, info = [])
       }
     },
   })
+  autoTable(doc, tableOpts(columns, rows, y))
+
+  // Optional second table, e.g. totals after the details
+  if (summary?.rows?.length) {
+    let sy = doc.lastAutoTable.finalY + 12
+    if (sy > pageH - 50) { doc.addPage(); sy = headerH + 14 }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.setTextColor(...NAVY)
+    doc.text(summary.title, margin, sy)
+    autoTable(doc, tableOpts(summary.columns, summary.rows, sy + 4))
+  }
 
   // Letterhead and footer on every page
   const total = doc.getNumberOfPages()

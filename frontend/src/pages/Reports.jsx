@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Download } from 'lucide-react'
+import { Download, Search, X } from 'lucide-react'
 import { useFetch } from '../hooks/useList'
 import { cap, downloadCsv, fmtDate, fmtShort, plural, thisMonth } from '../lib/format'
 import { Card, Empty, ErrorNote, Loading, PageHeader, StatStrip, Tabs } from '../components/ui'
@@ -51,16 +51,17 @@ export default function Reports() {
   )
 }
 
-function ExportButton({ name, month, columns, rows }) {
+function ExportButton({ name, month, columns, rows, summary = null, info = [], title = null }) {
+  const empty = !rows.length && !summary?.rows?.length
   return (
     <div className="flex gap-1">
-      <button className="btn-ghost !py-1.5" disabled={!rows.length} onClick={() => downloadCsv(`${name}-${month}.csv`, columns, rows)}>
+      <button className="btn-ghost !py-1.5" disabled={empty} onClick={() => downloadCsv(`${name}-${month}.csv`, columns, rows, summary)}>
         <Download className="h-4 w-4" /> CSV
       </button>
       <button
         className="btn-ghost !py-1.5"
-        disabled={!rows.length}
-        onClick={() => downloadPdf(`${name}-${month}.pdf`, `${cap(name.replace(/-/g, ' '))} report`, `Month: ${month}`, columns, rows)}
+        disabled={empty}
+        onClick={() => downloadPdf(`${name}-${month}.pdf`, title || `${cap(name.replace(/-/g, ' '))} report`, `Month: ${month}`, columns, rows, info, summary)}
       >
         <Download className="h-4 w-4" /> PDF
       </button>
@@ -168,21 +169,137 @@ function AttendanceReport({ d, role, setRole, month }) {
   )
 }
 
+// "12 Nov 2026" for one day, "12 Nov 2026 to 14 Nov 2026" for a run of days
+const leaveDates = (l) => (l.start_date === l.end_date ? fmtDate(l.start_date) : `${fmtDate(l.start_date)} to ${fmtDate(l.end_date)}`)
+const leaveTimes = (l) => (l.duration_type === 'full' ? 'Whole day' : `${l.start_time} to ${l.end_time}`)
+
+// No search: everyone's totals for the month.
+// Search an employee: that person's leave, day by day, with their total at the end.
 function LeaveReport({ d, month }) {
+  const [query, setQuery] = useState('')
+  const [picked, setPicked] = useState(null) // { user_id, name, staff_code, role }
+  const [showList, setShowList] = useState(false)
+
+  const q = query.trim().toLowerCase()
+  const matches = q
+    ? d.rows.filter((r) => `${r.name} ${r.staff_code}`.toLowerCase().includes(q)).slice(0, 8)
+    : []
+
+  function pick(r) {
+    setPicked({ user_id: r.user_id, name: r.name, staff_code: r.staff_code, role: r.role })
+    setQuery(r.name)
+    setShowList(false)
+  }
+
+  function clear() {
+    setPicked(null)
+    setQuery('')
+    setShowList(false)
+  }
+
+  const search = (
+    <div className="relative w-full sm:w-80">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+      <input
+        className="input pl-9 pr-9"
+        placeholder="Search an employee by name or ID..."
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setPicked(null); setShowList(true) }}
+        onFocus={() => setShowList(true)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && matches[0]) { e.preventDefault(); pick(matches[0]) } }}
+      />
+      {query && (
+        <button type="button" title="Clear search" onClick={clear}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-faint hover:text-ink">
+          <X className="h-4 w-4" />
+        </button>
+      )}
+      {showList && !picked && q && (
+        <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-line bg-white py-1 shadow-lg">
+          {matches.length === 0 && <li className="px-3 py-2 text-sm text-muted">No one with leave this month matches.</li>}
+          {matches.map((r) => (
+            <li key={r.user_id}>
+              <button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-paper" onClick={() => pick(r)}>
+                <span className="font-medium">{r.name}</span> <span className="text-xs text-muted">{r.staff_code}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+
+  // ---------- one employee ----------
+  if (picked) {
+    const row = d.rows.find((r) => r.user_id === picked.user_id)
+    const details = (d.details || []).filter((l) => l.user_id === picked.user_id)
+
+    const detailCols = [['Leave', (r) => cap(r.leave_type)], ['Duration', (r) => r.duration_label],
+      ['Date', leaveDates], ['Time', leaveTimes], ['Reason', (r) => r.reason || '-']]
+    const total = row
+      ? [{ ...row }]
+      : [{ pending: 0, approved: 0, rejected: 0, approved_days: '0 days' }]
+    const summary = {
+      title: 'Total leave',
+      columns: [['Pending', (r) => r.pending], ['Approved', (r) => r.approved], ['Rejected', (r) => r.rejected],
+        ['Total approved leave', (r) => r.approved_days]],
+      rows: total,
+    }
+    const info = [['Name', picked.name], ['ID', picked.staff_code], ['Role', cap(picked.role)]]
+
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-end">{search}</div>
+        <Card flush title={`Leave details · ${picked.name}`} action={
+          <ExportButton name={`leave-${picked.staff_code}`} title="Leave report" month={month} columns={detailCols} rows={details} summary={summary} info={info} />
+        }>
+          <div className="overflow-x-auto">
+            <table className="tbl">
+              <thead><tr><th>Leave</th><th>Duration</th><th>Date</th><th>Time</th><th>Reason</th></tr></thead>
+              <tbody>
+                {details.map((l) => (
+                  <tr key={l.id}>
+                    <td>{cap(l.leave_type)}</td>
+                    <td>{l.duration_label}</td>
+                    <td>{leaveDates(l)}</td>
+                    <td>{leaveTimes(l)}</td>
+                    <td className="max-w-[18rem] truncate text-muted" title={l.reason || ''}>{l.reason || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!details.length && <Empty text="No approved leave for this person in this month." />}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4">
+            <span className="text-sm text-muted">
+              Pending {total[0].pending} · Approved {total[0].approved} · Rejected {total[0].rejected}
+            </span>
+            <span className="text-sm">Total approved leave: <strong>{total[0].approved_days}</strong></span>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  // ---------- everyone ----------
   const cols = [['Name', (r) => r.name], ['ID', (r) => r.staff_code], ['Role', (r) => r.role], ['Pending', (r) => r.pending],
     ['Approved', (r) => r.approved], ['Rejected', (r) => r.rejected], ['Approved leave', (r) => r.approved_days]]
+
   return (
-    <Card flush title="Leave by person" action={<ExportButton name="leave" month={month} columns={cols} rows={d.rows} />}>
-      <ReportTable head={['Name', 'Role', 'Pending', 'Approved', 'Rejected', 'Approved leave']} isEmpty={!d.rows.length} empty="No leave in this month.">
-        {d.rows.map((r) => (
-          <tr key={r.user_id}>
-            <td><p className="font-medium">{r.name}</p><p className="text-xs text-muted">{r.staff_code}</p></td>
-            <td>{cap(r.role)}</td>
-            <td className={num}>{r.pending}</td><td className={num}>{r.approved}</td><td className={num}>{r.rejected}</td><td className={num}>{r.approved_days}</td>
-          </tr>
-        ))}
-      </ReportTable>
-    </Card>
+    <div className="space-y-4">
+      <div className="flex justify-end">{search}</div>
+      <Card flush title="Leave by person" action={<ExportButton name="leave" month={month} columns={cols} rows={d.rows} />}>
+        <ReportTable head={['Name', 'Role', 'Pending', 'Approved', 'Rejected', 'Approved leave']} isEmpty={!d.rows.length} empty="No leave in this month.">
+          {d.rows.map((r) => (
+            <tr key={r.user_id}>
+              <td><p className="font-medium">{r.name}</p><p className="text-xs text-muted">{r.staff_code}</p></td>
+              <td>{cap(r.role)}</td>
+              <td className={num}>{r.pending}</td><td className={num}>{r.approved}</td><td className={num}>{r.rejected}</td><td className={num}>{r.approved_days}</td>
+            </tr>
+          ))}
+        </ReportTable>
+      </Card>
+    </div>
   )
 }
 
