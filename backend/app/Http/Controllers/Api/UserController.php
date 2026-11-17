@@ -131,7 +131,10 @@ class UserController extends Controller
     public function qr($id)
     {
         $user = User::findOrFail($id);
-        $svg = QrCode::size(300)->generate($user->ensureQrToken());
+        // The QR holds a link. A normal phone scanner opens it and sees the person's details
+        // (read only). The admin scanner reads the token out of the link to mark attendance.
+        $link = rtrim(config('worksphere.frontend_url'), '/') . '/p/' . $user->ensureQrToken();
+        $svg = QrCode::size(300)->generate($link);
 
         return response($svg)->header('Content-Type', 'image/svg+xml');
     }

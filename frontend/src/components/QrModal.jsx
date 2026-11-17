@@ -55,7 +55,7 @@ export default function QrModal({ person, onClose }) {
           {svg && <div className="mx-auto w-56 [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />}
           <p className="mt-4 font-semibold">{person.name}</p>
           <p className="text-sm text-muted">{person.staff_code}</p>
-          <p className="mt-3 text-xs text-faint">Scan this at the gate scanner to record check-in and check-out.</p>
+          <p className="mt-3 text-xs text-faint">The gate scanner records check-in and check-out. Any other phone scanner only shows this person's details.</p>
         </div>
       )}
     </Modal>

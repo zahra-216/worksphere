@@ -101,6 +101,7 @@ export default function WorkAllocation() {
                   <td className="max-w-[16rem]">
                     <p className="truncate font-medium">{t.title}</p>
                     {t.description && <p className="truncate text-xs text-muted">{t.description}</p>}
+                    {t.completed_work && <p className="truncate text-xs text-good">Done: {t.completed_work}</p>}
                   </td>
                   <td>{t.project?.name}</td>
                   <td><PersonCell name={t.assignee?.name} sub={cap(t.assignee?.role)} /></td>

@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
-import { cap, toInputDate, today } from '../lib/format'
+import { cap, fmtDate, toInputDate, today } from '../lib/format'
 import { useFetch } from '../hooks/useList'
 import { ErrorNote, Field, Modal } from './ui'
 
 const blank = (assignee = '') => ({
-  project_id: '', assigned_to: assignee, title: '', description: '',
+  project_id: '', assigned_to: assignee, title: '', description: '', completed_work: '',
   start_date: today(), due_date: '', status: 'pending', completed_date: '',
 })
 
 // Add / edit a task. Admin picks the person; everyone else logs work for themselves.
 export default function TaskForm({ open, onClose, task, isAdmin, defaultAssignee = '', onSaved }) {
   const editing = !!task
+  // A task the admin assigned: the person can only report their work, not change the task.
+  const locked = editing && !isAdmin && !!task.assigned_by_admin
   const { data: projects } = useFetch(open ? '/projects' : null, [open])
   const { data: people } = useFetch(open && isAdmin ? '/users?per_page=500&status=active' : null, [open])
 
@@ -24,7 +26,7 @@ export default function TaskForm({ open, onClose, task, isAdmin, defaultAssignee
     setError('')
     setF(task ? {
       project_id: task.project_id, assigned_to: task.assigned_to, title: task.title,
-      description: task.description || '', start_date: toInputDate(task.start_date),
+      description: task.description || '', completed_work: task.completed_work || '', start_date: toInputDate(task.start_date),
       due_date: toInputDate(task.due_date), status: task.status, completed_date: toInputDate(task.completed_date),
     } : blank(defaultAssignee))
   }, [open, task, defaultAssignee])
@@ -35,11 +37,16 @@ export default function TaskForm({ open, onClose, task, isAdmin, defaultAssignee
     e.preventDefault()
     setError(''); setBusy(true)
     const body = {
-      project_id: f.project_id, title: f.title, description: f.description || null,
-      start_date: f.start_date, due_date: f.due_date || null, status: f.status,
+      completed_work: f.completed_work || null, status: f.status,
       completed_date: f.status === 'completed' ? (f.completed_date || today()) : null,
     }
-    if (isAdmin) body.assigned_to = f.assigned_to
+    if (!locked) {
+      Object.assign(body, {
+        project_id: f.project_id, title: f.title, description: f.description || null,
+        start_date: f.start_date, due_date: f.due_date || null,
+      })
+      if (isAdmin) body.assigned_to = f.assigned_to
+    }
     try {
       await api(editing ? `/tasks/${task.id}` : '/tasks', { method: editing ? 'PUT' : 'POST', body })
       onSaved(editing)
@@ -57,7 +64,7 @@ export default function TaskForm({ open, onClose, task, isAdmin, defaultAssignee
     <Modal
       open={open}
       onClose={onClose}
-      title={editing ? 'Edit task' : isAdmin ? 'Assign task' : 'Log work'}
+      title={locked ? 'Report your work' : editing ? 'Edit task' : isAdmin ? 'Assign task' : 'Log work'}
       width="max-w-xl"
       footer={
         <>
@@ -69,6 +76,18 @@ export default function TaskForm({ open, onClose, task, isAdmin, defaultAssignee
       <form id="task-form" onSubmit={submit} className="space-y-4">
         <ErrorNote>{error}</ErrorNote>
 
+        {locked && (
+          <div className="rounded-lg bg-paper px-4 py-3 text-sm">
+            <p className="mb-2 text-xs text-muted">Assigned by the admin. You can't change these details.</p>
+            <p className="font-medium">{task.title}</p>
+            {task.description && <p className="mt-0.5 text-muted">{task.description}</p>}
+            <p className="mt-1.5 text-xs text-muted">
+              {task.project?.name} · start {fmtDate(task.start_date)}{task.due_date && ` · due ${fmtDate(task.due_date)}`}
+            </p>
+          </div>
+        )}
+
+        {!locked && (<>
         <Field label={isAdmin ? 'Task title *' : 'What did you work on? *'}>
           <input className="input" required value={f.title} onChange={set('title')} placeholder={isAdmin ? 'e.g. Social media content' : 'e.g. Designed the event poster'} />
         </Field>
@@ -101,13 +120,25 @@ export default function TaskForm({ open, onClose, task, isAdmin, defaultAssignee
           <textarea className="input" maxLength={2000} value={f.description} onChange={set('description')} placeholder="Add a few notes" />
         </Field>
 
+        </>)}
+
+        {(editing || !isAdmin) && (
+          <Field label="Completed work" hint="What you did, to be filled in by the person">
+            <textarea className="input" maxLength={2000} value={f.completed_work} onChange={set('completed_work')} placeholder="Describe what was done" />
+          </Field>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Start date *">
-            <input className="input" type="date" required value={f.start_date} onChange={set('start_date')} />
-          </Field>
-          <Field label="Due date">
-            <input className="input" type="date" min={f.start_date} value={f.due_date} onChange={set('due_date')} />
-          </Field>
+          {!locked && (
+            <Field label="Start date *">
+              <input className="input" type="date" required value={f.start_date} onChange={set('start_date')} />
+            </Field>
+          )}
+          {!locked && (
+            <Field label="Due date">
+              <input className="input" type="date" min={f.start_date} value={f.due_date} onChange={set('due_date')} />
+            </Field>
+          )}
           <Field label="Status">
             <select className="input" value={f.status} onChange={set('status')}>
               <option value="pending">Pending</option>

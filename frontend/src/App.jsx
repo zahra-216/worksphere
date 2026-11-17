@@ -18,6 +18,7 @@ import Settings from './pages/Settings'
 import ChangePassword from './pages/ChangePassword'
 import { Loading } from './components/ui'
 import ScanAttendance from './pages/ScanAttendance'
+import PublicQr from './pages/PublicQr'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -45,6 +46,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/p/:token" element={<PublicQr />} />
 
       <Route element={<Protected><Layout /></Protected>}>
         <Route path="/dashboard" element={<Dashboard />} />

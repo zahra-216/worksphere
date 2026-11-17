@@ -67,6 +67,10 @@ export default function MyTasks() {
               <div className="min-w-0 flex-1">
                 <p className={`font-medium ${t.status === 'completed' ? 'text-muted line-through' : ''}`}>{t.title}</p>
                 {t.description && <p className="mt-0.5 text-sm text-muted">{t.description}</p>}
+                {t.completed_work && (
+                  <p className="mt-1.5 rounded-lg bg-paper px-3 py-2 text-sm"><span className="text-muted">Completed work: </span>{t.completed_work}</p>
+                )}
+                {t.assigned_by_admin && <p className="mt-1.5 text-xs text-faint">Assigned by the admin</p>}
                 <p className="mt-1.5 text-xs text-muted">
                   {t.project?.name} · started {fmtDate(t.start_date)}
                   {t.due_date && ` · due ${fmtDate(t.due_date)}`}
@@ -75,8 +79,10 @@ export default function MyTasks() {
               </div>
               <div className="flex items-center gap-1">
                 <Badge status={t.status} />
-                <button className="icon-btn ml-2" title="Edit" onClick={() => setForm({ open: true, task: t })}><Pencil className="h-4 w-4" /></button>
-                <button className="icon-btn danger" title="Delete" onClick={() => setToDelete(t)}><Trash2 className="h-4 w-4" /></button>
+                <button className="icon-btn ml-2" title={t.assigned_by_admin ? 'Report your work' : 'Edit'} onClick={() => setForm({ open: true, task: t })}><Pencil className="h-4 w-4" /></button>
+                {!t.assigned_by_admin && (
+                  <button className="icon-btn danger" title="Delete" onClick={() => setToDelete(t)}><Trash2 className="h-4 w-4" /></button>
+                )}
               </div>
             </li>
           ))}

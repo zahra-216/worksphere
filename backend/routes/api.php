@@ -10,13 +10,19 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\PublicQrController;
+use App\Http\Controllers\Api\ScanDeviceController;
 use App\Http\Middleware\AdminOnly;
+use App\Http\Middleware\RegisteredScanDevice;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\SelfScanController;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/forgot-password', [PasswordController::class, 'forgot'])->middleware('throttle:5,1');
 Route::post('/reset-password', [PasswordController::class, 'reset'])->middleware('throttle:10,1');
+
+// Public, read only: what a normal phone scanner sees. Never marks attendance.
+Route::get('/public/qr/{token}', [PublicQrController::class, 'show'])->middleware('throttle:30,1');
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -50,8 +56,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::patch('/leave-requests/{id}/decision', [LeaveRequestController::class, 'decide']);
 
-        Route::post('/attendance/verify', [SelfScanController::class, 'verify'])->middleware('throttle:30,1');
-        Route::post('/attendance/mark', [SelfScanController::class, 'mark'])->middleware('throttle:30,1');
+        // Scanner devices: register / list / revoke, and "is this device registered?"
+        Route::get('/attendance/device', [ScanDeviceController::class, 'status']);
+        Route::get('/attendance/devices', [ScanDeviceController::class, 'index']);
+        Route::post('/attendance/devices', [ScanDeviceController::class, 'store'])->middleware('throttle:10,1');
+        Route::delete('/attendance/devices/{id}', [ScanDeviceController::class, 'destroy']);
+
+        // Only registered devices can verify and mark attendance
+        Route::middleware(RegisteredScanDevice::class)->group(function () {
+            Route::post('/attendance/verify', [SelfScanController::class, 'verify'])->middleware('throttle:30,1');
+            Route::post('/attendance/mark', [SelfScanController::class, 'mark'])->middleware('throttle:30,1');
+        });
 
         Route::get('/gate-log', [GateLogController::class, 'index']);
         Route::get('/gate-log/history', [GateLogController::class, 'history']);

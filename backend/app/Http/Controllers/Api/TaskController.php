@@ -40,6 +40,7 @@ class TaskController extends Controller
                 Rule::exists('users', 'id')->where(fn($q) => $q->where('role', '!=', 'admin'))],
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
+            'completed_work' => 'nullable|string|max:2000',
             'start_date' => 'required|date',
             'due_date' => 'nullable|date|after_or_equal:start_date',
             'status' => ['nullable', Rule::in(['pending', 'completed'])],
@@ -79,6 +80,7 @@ class TaskController extends Controller
                 Rule::exists('users', 'id')->where(fn($q) => $q->where('role', '!=', 'admin'))],
             'title' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string|max:2000',
+            'completed_work' => 'nullable|string|max:2000',
             'start_date' => 'sometimes|required|date',
             'due_date' => 'nullable|date',
             'status' => ['sometimes', Rule::in(['pending', 'completed'])],
@@ -87,6 +89,12 @@ class TaskController extends Controller
 
         if (!$user->isAdmin()) {
             unset($data['assigned_to']);   // only admin can reassign
+
+            // A task the admin assigned: the person can only report their work and status.
+            // Tasks they logged themselves stay fully editable.
+            if ($task->assigned_by_admin) {
+                $data = array_intersect_key($data, array_flip(['completed_work', 'status', 'completed_date']));
+            }
         }
 
         $data = $this->resolveCompletion($data, $task);
@@ -100,8 +108,8 @@ class TaskController extends Controller
         $user = $request->user();
         $task = Task::findOrFail($id);
 
-        // Admin can delete any task. Others can delete any task assigned to them.
-        abort_unless($user->isAdmin() || $task->assigned_to === $user->id, 403);
+        // Admin can delete any task. Others can delete only the entries they logged themselves.
+        abort_unless($user->isAdmin() || ($task->assigned_to === $user->id && !$task->assigned_by_admin), 403);
 
         $task->delete();
 

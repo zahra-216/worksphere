@@ -2,13 +2,72 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Html5Qrcode } from 'html5-qrcode'
 import { Check } from 'lucide-react'
-import { api } from '../lib/api'
+import { api, clearDeviceKey, getDeviceKey, setDeviceKey } from '../lib/api'
 import { cap } from '../lib/format'
-import { Card, ErrorNote, PageHeader } from '../components/ui'
+import { Card, ErrorNote, Field, Loading, PageHeader, useToast } from '../components/ui'
 
 const btn = 'inline-flex w-full items-center justify-center rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-60'
 
+// Only registered devices may mark attendance. Check this device first, then show the scanner.
 export default function ScanAttendance() {
+  const [registered, setRegistered] = useState(null) // null = checking
+
+  useEffect(() => {
+    api('/attendance/device')
+      .then((d) => {
+        if (!d.registered) clearDeviceKey()
+        setRegistered(d.registered)
+      })
+      .catch(() => setRegistered(false))
+  }, [])
+
+  if (registered === null) return <Loading />
+  if (!registered) return <RegisterDevice onDone={() => setRegistered(true)} />
+  return <Scanner onLostDevice={() => { clearDeviceKey(); setRegistered(false) }} />
+}
+
+function RegisterDevice({ onDone }) {
+  const toast = useToast()
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function register(e) {
+    e.preventDefault()
+    setError(''); setBusy(true)
+    try {
+      const res = await api('/attendance/devices', { method: 'POST', body: { name } })
+      setDeviceKey(res.key)
+      toast('This device can now mark attendance')
+      onDone()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-md">
+      <PageHeader title="Scan attendance" subtitle="Scan the QR code at the gate." />
+      <Card title="This device is not registered">
+        <p className="mb-4 text-sm text-muted">
+          Only registered devices can mark attendance. If this is a campus scanner (for example the gate tablet),
+          register it once. You can remove a device later from Settings.
+        </p>
+        <ErrorNote>{error}</ErrorNote>
+        <form onSubmit={register} className="space-y-4">
+          <Field label="Device name" hint="For example: Gate tablet">
+            <input className="input" required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <button className={btn} disabled={busy || !name.trim()}>{busy ? 'Registering...' : 'Register this device'}</button>
+        </form>
+      </Card>
+    </div>
+  )
+}
+
+function Scanner({ onLostDevice }) {
   const [step, setStep] = useState('scan') // scan | ready | done
   const [code, setCode] = useState('')
   const [info, setInfo] = useState(null)
@@ -44,6 +103,7 @@ export default function ScanAttendance() {
       setError('')
       setStep('ready')
     } catch (e) {
+      if (e.code === 'device_not_registered') return onLostDevice()
       setError(e.message)
       setTimeout(() => { handled.current = false }, 2500)
     }
@@ -57,6 +117,7 @@ export default function ScanAttendance() {
       setResult(data)
       setStep('done')
     } catch (e) {
+      if (e.code === 'device_not_registered') return onLostDevice()
       setError(e.message)
     }
     setBusy(false)

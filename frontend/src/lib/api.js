@@ -13,10 +13,18 @@ export function clearToken() {
   sessionStorage.removeItem(KEY)
 }
 
+// Key that marks this browser as a registered attendance-scanner device
+const DEVICE_KEY = 'ws_scan_device'
+export const getDeviceKey = () => localStorage.getItem(DEVICE_KEY)
+export const setDeviceKey = (key) => localStorage.setItem(DEVICE_KEY, key)
+export const clearDeviceKey = () => localStorage.removeItem(DEVICE_KEY)
+
 function authHeaders(extra = {}) {
   const headers = { Accept: 'application/json', ...extra }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
+  const device = getDeviceKey()
+  if (device) headers['X-Scan-Device'] = device
   return headers
 }
 
@@ -48,6 +56,7 @@ export async function api(path, { method = 'GET', body, form } = {}) {
     const firstError = data?.errors ? Object.values(data.errors)[0]?.[0] : null
     const err = new Error(firstError || data?.message || 'Something went wrong.')
     err.status = res.status
+    err.code = data?.code
     err.errors = data?.errors
     throw err
   }

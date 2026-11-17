@@ -13,6 +13,11 @@ class SelfScanController extends Controller
     {
         $token = trim((string) $request->input('token'));
 
+        // New QR codes hold a link like https://site/p/<token>. Old ones hold the bare token.
+        if (preg_match('#/p/([A-Za-z0-9_-]+)/?(?:[?\#].*)?$#', $token, $m)) {
+            $token = $m[1];
+        }
+
         return $token === ''
             ? null
             : User::where('qr_token', $token)->where('status', 'active')->first();

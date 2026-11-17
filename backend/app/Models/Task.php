@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Task extends Model
 {
     protected $fillable = [
-        'project_id', 'assigned_to', 'created_by', 'title', 'description',
+        'project_id', 'assigned_to', 'created_by', 'title', 'description', 'completed_work',
         'start_date', 'due_date', 'completed_date', 'status',
     ];
 
@@ -17,7 +17,14 @@ class Task extends Model
         'completed_date' => 'date',
     ];
 
-    protected $appends = ['days_taken'];
+    protected $appends = ['days_taken', 'assigned_by_admin'];
+
+    // True when someone else (the admin) gave this task to the assignee.
+    // The assignee can then only fill in the work they did, not change the task itself.
+    public function getAssignedByAdminAttribute(): bool
+    {
+        return $this->created_by !== $this->assigned_to;
+    }
 
     public function project()
     {
