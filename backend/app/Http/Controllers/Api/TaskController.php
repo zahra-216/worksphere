@@ -22,7 +22,15 @@ class TaskController extends Controller
             ->when($user->isAdmin() && $request->query('assigned_to'), fn($q) => $q->where('assigned_to', (int) $request->query('assigned_to')))
             ->when($request->query('project_id'), fn($q, $id) => $q->where('project_id', $id))
             ->when($request->query('status'), fn($q, $s) => $q->where('status', $s))
-            ->when($request->query('search'), fn($q, $s) => $q->where('title', 'like', "%{$s}%"))
+            // One box searches the task, its notes, the person (name or staff ID) and the project
+            ->when($request->query('search'), fn($q, $s) => $q->where(function ($w) use ($s) {
+                $w->where('title', 'like', "%{$s}%")
+                    ->orWhere('description', 'like', "%{$s}%")
+                    ->orWhere('completed_work', 'like', "%{$s}%")
+                    ->orWhereHas('assignee', fn($a) => $a->where('name', 'like', "%{$s}%")
+                        ->orWhere('staff_code', 'like', "%{$s}%"))
+                    ->orWhereHas('project', fn($p) => $p->where('name', 'like', "%{$s}%"));
+            }))
             ->orderByDesc('created_at')
             ->paginate((int) $request->query('per_page', 10));
 
