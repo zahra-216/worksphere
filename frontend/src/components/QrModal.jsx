@@ -7,18 +7,21 @@ import { Loading, Modal } from './ui'
 export default function QrModal({ person, onClose }) {
   const [svg, setSvg] = useState('')
   const [error, setError] = useState('')
+  const [type, setType] = useState('code') // code = original QR, link = QR that opens a details page
+
+  useEffect(() => { setType('code') }, [person])
 
   useEffect(() => {
     if (!person) return
     setSvg(''); setError('')
-    apiText(`/users/${person.id}/qr`).then(setSvg).catch((e) => setError(e.message))
-  }, [person])
+    apiText(`/users/${person.id}/qr${type === 'link' ? '?type=link' : ''}`).then(setSvg).catch((e) => setError(e.message))
+  }, [person, type])
 
   function download() {
     const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
     const a = document.createElement('a')
     a.href = url
-    a.download = `${person.staff_code || 'qr'}-${person.name.replace(/\s+/g, '-')}.svg`
+    a.download = `${person.staff_code || 'qr'}-${person.name.replace(/\s+/g, '-')}${type === 'link' ? '-link' : ''}.svg`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -55,7 +58,17 @@ export default function QrModal({ person, onClose }) {
           {svg && <div className="mx-auto w-56 [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />}
           <p className="mt-4 font-semibold">{person.name}</p>
           <p className="text-sm text-muted">{person.staff_code}</p>
-          <p className="mt-3 text-xs text-faint">The gate scanner records check-in and check-out. Any other phone scanner only shows this person's details.</p>
+          {type === 'code' ? (
+            <>
+              <p className="mt-3 text-xs text-faint">This is the standard QR (same as the ID cards). The gate scanner uses it for check-in and check-out.</p>
+              <button className="mt-2 text-xs font-medium text-accent hover:underline" onClick={() => setType('link')}>Show the phone-friendly QR</button>
+            </>
+          ) : (
+            <>
+              <p className="mt-3 text-xs text-faint">This QR works in the gate scanner too. A normal phone scanner opens a page with this person's name, ID and role, and never marks attendance.</p>
+              <button className="mt-2 text-xs font-medium text-accent hover:underline" onClick={() => setType('code')}>Back to the standard QR</button>
+            </>
+          )}
         </div>
       )}
     </Modal>

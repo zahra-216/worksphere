@@ -128,13 +128,17 @@ class UserController extends Controller
     }
 
     // GET /api/users/{id}/qr  -> SVG image of this person's unique QR
-    public function qr($id)
+    // Two QR styles for the same person (both work in the admin scanner):
+    //  - default ("code"): the original QR, the same one already printed on ID cards
+    //  - ?type=link: holds a link, so a normal phone scanner shows the person's details (read only)
+    public function qr(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        // The QR holds a link. A normal phone scanner opens it and sees the person's details
-        // (read only). The admin scanner reads the token out of the link to mark attendance.
-        $link = rtrim(config('worksphere.frontend_url'), '/') . '/p/' . $user->ensureQrToken();
-        $svg = QrCode::size(300)->generate($link);
+        $token = $user->ensureQrToken();
+        $content = $request->query('type') === 'link'
+            ? rtrim(config('worksphere.frontend_url'), '/') . '/p/' . $token
+            : $token;
+        $svg = QrCode::size(300)->generate($content);
 
         return response($svg)->header('Content-Type', 'image/svg+xml');
     }
