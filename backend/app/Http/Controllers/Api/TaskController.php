@@ -19,7 +19,7 @@ class TaskController extends Controller
 
         $tasks = Task::with(['project', 'assignee:id,name,staff_code,role'])
             ->when(!$user->isAdmin(), fn($q) => $q->where('assigned_to', $user->id))
-            ->when($user->isAdmin() && $request->query('assigned_to'), fn($q, $id) => $q->where('assigned_to', $id))
+            ->when($user->isAdmin() && $request->query('assigned_to'), fn($q) => $q->where('assigned_to', (int) $request->query('assigned_to')))
             ->when($request->query('project_id'), fn($q, $id) => $q->where('project_id', $id))
             ->when($request->query('status'), fn($q, $s) => $q->where('status', $s))
             ->when($request->query('search'), fn($q, $s) => $q->where('title', 'like', "%{$s}%"))

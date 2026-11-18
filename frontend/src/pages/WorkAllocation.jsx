@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { CheckCircle2, Circle, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { CheckCircle2, Circle, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { useDebounced, useFetch, useList } from '../hooks/useList'
 import { cap, fmtShort, plural } from '../lib/format'
@@ -72,16 +72,11 @@ export default function WorkAllocation() {
             <option value="pending">Pending</option>
             <option value="completed">Completed</option>
           </select>
-          <select className="input !w-auto" value={assignedTo}
-            onChange={(e) => { setParams(e.target.value ? { assigned_to: e.target.value } : {}); setPage(1) }}>
-            <option value="">Everyone</option>
-            {(people?.data || []).map((p) => <option key={p.id} value={p.id}>{p.name} ({cap(p.role)})</option>)}
-          </select>
-          {assignedTo && (
-            <button className="btn-ghost !py-1.5" onClick={() => setParams({})}>
-              {person?.name || 'Filtered'} <X className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <PersonPicker
+            people={people?.data || []}
+            selected={person}
+            onPick={(p) => { setParams(p ? { assigned_to: String(p.id) } : {}); setPage(1) }}
+          />
         </div>
 
         <div className="overflow-x-auto">
@@ -136,6 +131,52 @@ export default function WorkAllocation() {
         onSaved={(wasEdit) => { setForm({ open: false, task: null }); toast(wasEdit ? 'Task updated' : 'Task created'); reload() }}
       />
       <Confirm open={!!toDelete} title="Delete task?" text={`"${toDelete?.title}" will be removed.`} onConfirm={remove} onClose={() => setToDelete(null)} />
+    </div>
+  )
+}
+
+// Search a person by name or staff ID. Matching people appear as you type.
+function PersonPicker({ people, selected, onPick }) {
+  const [text, setText] = useState('')
+  const [open, setOpen] = useState(false)
+  const q = text.trim().toLowerCase()
+  const matches = q
+    ? people.filter((p) => `${p.name} ${p.staff_code || ''}`.toLowerCase().includes(q)).slice(0, 8)
+    : []
+
+  if (selected) {
+    return (
+      <button className="btn-ghost !py-1.5" onClick={() => { onPick(null); setText('') }}>
+        {selected.name} <X className="h-3.5 w-3.5" />
+      </button>
+    )
+  }
+
+  return (
+    <div className="relative">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+      <input
+        className="input !w-64 !pl-9"
+        placeholder="Search person by name or ID..."
+        value={text}
+        onChange={(e) => { setText(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && q && (
+        <ul className="absolute z-20 mt-1 max-h-64 w-72 overflow-auto rounded-lg border border-line bg-white py-1 shadow-lg">
+          {matches.length === 0 && <li className="px-3 py-2 text-sm text-muted">No one found</li>}
+          {matches.map((p) => (
+            <li key={p.id}>
+              <button type="button" className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-paper"
+                onMouseDown={() => { onPick(p); setText('') }}>
+                <span className="font-medium">{p.name}</span>
+                <span className="text-xs text-muted">{cap(p.role)}{p.staff_code ? ` · ${p.staff_code}` : ''}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
